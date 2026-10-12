@@ -22,7 +22,7 @@
 
 ## Security
 - API key is server-side only (env.DEEPSEEK_API_KEY), never exposed to client
-- Users stored in localStorage as SHA-256 hash (hoshai_users_v2)
+- Users stored in localStorage as SHA-256 hash (hoshai_users_v2).
 - CORS enabled for streaming
 
 ## Fix for Signup issue
