@@ -344,8 +344,9 @@ async function send() {
   const msgsContainer = document.getElementById('msgs');
   msgsContainer.scrollTop = msgsContainer.scrollHeight; 
   
-  const holder = addBubble('a','<span id="stream"><span class="HoshAI-brand">HoshAI</span> is thinking...</span>');
-  const streamEl = document.getElementById('stream');
+  const streamId = 'stream_' + Date.now();
+  const holder = addBubble('a', `<span id=\"${streamId}\"><span class="HoshAI-brand">HoshAI</span> is thinking...</span>`);
+  const streamEl = document.getElementById(streamId);
   
   try {
     const res = await fetch('/api/chat', {
@@ -363,7 +364,7 @@ async function send() {
       const {done, value} = await reader.read();
       if(done) break;
       const chunk = dec.decode(value);
-      for(const line of chunk.split('\\n')){
+      for(const line of chunk.split('\n')){
         if(line.startsWith('data: ')){
           const d = line.slice(6);
           if(d === '[DONE]') continue;
@@ -372,7 +373,7 @@ async function send() {
             const delta = j.choices?.[0]?.delta?.content;
             if(delta){
               full += delta;
-              streamEl.innerHTML = full.replace(/\\n/g,'<br>');
+              streamEl.innerHTML = full.replace(/\n/g,'<br>');
               msgsContainer.scrollTop = msgsContainer.scrollHeight;
             }
           } catch(e) {}

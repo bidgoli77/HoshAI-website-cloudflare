@@ -24,3 +24,5 @@
 4. **Deploy:** Push your repository to Cloudflare Pages.
 
 9. **Critical Bugfix:** Fixed a JavaScript syntax error (escaping quotes) that caused the login buttons to become unresponsive.
+10. **Critical Bugfix:** Fixed SSE chunk parsing (newline split bug) causing chat to hang indefinitely on 'thinking...'.
+11. **UI Bugfix:** Added dynamic IDs for chat streams to support multiple continuous questions without refreshing.
