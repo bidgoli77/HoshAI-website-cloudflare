@@ -36,7 +36,7 @@ h1,h2,h3{font-family:'Space Grotesk',sans-serif;letter-spacing:-0.02em}
 .lab-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid rgba(255,255,255,0.07);flex-wrap:wrap;gap:12px}
 .lab-body{display:grid;grid-template-columns:260px 1fr;height:600px}
 .side{border-right:1px solid rgba(255,255,255,0.07);padding:16px;display:flex;flex-direction:column;gap:10px;background:#09090B}
-.msgs{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:14px}
+.msgs{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:14px;transition: border 0.3s;}
 .bubble{max-width:82%;padding:14px 18px;border-radius:18px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
 .u{align-self:flex-end;background:#fff;color:#000;border-bottom-right-radius:4px}
 .a{align-self:flex-start;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-bottom-left-radius:4px}
@@ -99,7 +99,11 @@ async function handleGoogle(resp){
     const data = await r.json();
     if(!r.ok) throw new Error(data.error||'Google login failed');
     localStorage.setItem('hoshai_user', JSON.stringify(data.user));
-    location.reload();
+    currentUser = data.user;
+    loadUserChats();
+    document.getElementById('msgs').innerHTML = ''; 
+    updateAuthUI();
+    document.getElementById('authOverlay').style.display='none';
   }catch(e){ showErr(e.message); }
 }
 window.addEventListener('DOMContentLoaded', initGoogle);
@@ -168,9 +172,13 @@ Example: "An AI platform that turns customer interviews into PRDs"
 
 → Built entirely by <span class="HoshAI-brand">HoshAI</span>.</div>
 </div>
-<div class="bar">
-<input id="inp" placeholder="Ask HoshAI anything or describe your idea..." onkeydown="if(event.key==='Enter')send()">
-<button class="btn btn-glow" onclick="send()">Send →</button>
+<div class="bar" id="dropZone">
+  <input type="file" id="fileInp" style="display:none" onchange="handleFileUpload(this.files)">
+  <button id="attachBtn" class="btn btn-ghost" style="padding:10px 14px" onclick="document.getElementById('fileInp').click()" title="Attach file">📎</button>
+  <button id="micBtn" class="btn btn-ghost" style="padding:10px 14px" onclick="toggleMic()" title="Voice typing">🎙️</button>
+  
+  <input id="inp" placeholder="Ask HoshAI anything or drop a file here..." onkeydown="if(event.key==='Enter')send()">
+  <button class="btn btn-glow" onclick="send()">Send →</button>
 </div>
 </div>
 </div>
@@ -185,11 +193,21 @@ Example: "An AI platform that turns customer interviews into PRDs"
 
 
 <script>
-let chats=JSON.parse(localStorage.getItem('hoshai_chats_final2')||'[]');
-let cur=[];let currentUser=JSON.parse(localStorage.getItem('hoshai_user')||'null');
-let users=JSON.parse(localStorage.getItem('hoshai_users_v2')||'[]');
-let mode=localStorage.getItem('hoshai_mode')||'chat';
-const $=s=>document.getElementById(s);
+let currentUser = JSON.parse(localStorage.getItem('hoshai_user') || 'null');
+let chats = []; 
+let cur = [];
+let mode = localStorage.getItem('hoshai_mode') || 'chat';
+const $ = s => document.getElementById(s);
+
+function getChatKey() {
+  return currentUser ? `hoshai_chats_${currentUser.id}` : 'hoshai_chats_guest';
+}
+
+function loadUserChats() {
+  chats = JSON.parse(localStorage.getItem(getChatKey()) || '[]');
+  renderHist();
+}
+
 function setMode(m){mode=m;localStorage.setItem('hoshai_mode',m);document.querySelectorAll('.mode').forEach(e=>e.classList.remove('active'));if(m==='chat'){document.getElementById('modeChat').classList.add('active')}else{document.getElementById('modeBuild').classList.add('active')}}
 setMode(mode);
 
@@ -227,6 +245,8 @@ async function handleSignup(){
     if(!res.ok) throw new Error(data.error||'Signup failed');
     localStorage.setItem('hoshai_user',JSON.stringify(data.user));
     currentUser=data.user;
+    loadUserChats();
+    document.getElementById('msgs').innerHTML = ''; 
     updateAuthUI();
     document.getElementById('authOverlay').style.display='none';
     document.getElementById('suName').value=''; document.getElementById('suEmail').value=''; document.getElementById('suPass').value='';
@@ -246,6 +266,8 @@ async function handleLogin(){
     if(!res.ok) throw new Error(data.error||'Login failed');
     localStorage.setItem('hoshai_user',JSON.stringify(data.user));
     currentUser=data.user;
+    loadUserChats();
+    document.getElementById('msgs').innerHTML = ''; 
     updateAuthUI();
     document.getElementById('authOverlay').style.display='none';
     document.getElementById('liEmail').value=''; document.getElementById('liPass').value='';
@@ -253,8 +275,14 @@ async function handleLogin(){
   finally{ btn.innerText='Log In →'; btn.disabled=false; }
 }
 
+function logout() {
+  localStorage.removeItem('hoshai_user');
+  currentUser = null;
+  cur = [];
+  loadUserChats(); 
+  updateAuthUI();
+}
 
-function logout(){localStorage.removeItem('hoshai_user');currentUser=null;updateAuthUI()}
 function showErr(m){const e=$('authError');e.innerText=m;e.style.display='block';setTimeout(()=>e.style.display='none',3500)}
 
 function getSystemPrompt(m){
@@ -267,26 +295,101 @@ function getSystemPrompt(m){
 
 function newChat(){if(!currentUser){openAuth();return}cur=[];$('msgs').innerHTML='<div class="bubble a">New <span class="HoshAI-brand">HoshAI</span> session started in '+mode+' mode. Describe your idea...</div>'}
 function addBubble(role,html){const m=$('msgs');const d=document.createElement('div');d.className='bubble '+(role==='user'?'u':'a');d.innerHTML=html;m.appendChild(d);m.scrollTop=m.scrollHeight;return d}
-function renderHist(){const h=$('hist');if(!h) return;h.innerHTML='';chats.slice(-7).reverse().forEach(c=>{const d=document.createElement('div');d.style.cssText='padding:8px 10px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#888;cursor:pointer';d.innerText=c.title;h.appendChild(d)})}
-renderHist();
 
-async function send(){
-  if(!currentUser){openAuth();return}
-  const inp=$('inp');const text=inp.value.trim();if(!text)return;
-  addBubble('user',text);cur.push({role:'user',content:text});inp.value='';
-  const holder=addBubble('a','<span id="stream"><span class="HoshAI-brand">HoshAI</span> is thinking...</span>');const streamEl=document.getElementById('stream');
-  try{
-    const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:cur,mode,systemPrompt:getSystemPrompt(mode)})});
-    if(!res.ok){const err=await res.text(); throw new Error(err);}
-    const reader=res.body.getReader();const dec=new TextDecoder();let full='';
-    while(true){const {done,value}=await reader.read();if(done)break;const chunk=dec.decode(value);for(const line of chunk.split('\n')){if(line.startsWith('data: ')){const d=line.slice(6);if(d==='[DONE]')continue;try{const j=JSON.parse(d);const delta=j.choices?.[0]?.delta?.content;if(delta){full+=delta;streamEl.innerHTML=full.replace(/\n/g,'<br>');$('msgs').scrollTop=999999}}catch{}}}}
-    cur.push({role:'assistant',content:full});
-    // save to history
-    chats.push({title:text.slice(0,40), at:Date.now()}); localStorage.setItem('hoshai_chats_final2', JSON.stringify(chats.slice(-20))); renderHist();
-  }catch(e){
-    holder.innerHTML='<span style="color:#ff6b6b">Error: '+e.message+'<br>Check Cloudflare env DEEPSEEK_API_KEY is set.</span>';
+function renderHist() {
+  const h = document.getElementById('hist');
+  if (!h) return;
+  h.innerHTML = '';
+  chats.slice(-7).reverse().forEach((c, index) => {
+    const realIndex = chats.length - 1 - index; 
+    const d = document.createElement('div');
+    d.style.cssText = 'padding:8px 10px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#888;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+    
+    const titleSpan = document.createElement('span');
+    titleSpan.style.overflow = 'hidden';
+    titleSpan.style.textOverflow = 'ellipsis';
+    titleSpan.style.whiteSpace = 'nowrap';
+    titleSpan.innerText = c.title;
+    
+    const delBtn = document.createElement('span');
+    delBtn.innerHTML = '&times;';
+    delBtn.style.cssText = 'color:#ff6b6b;font-size:16px;padding:0 5px;cursor:pointer;font-weight:bold;';
+    delBtn.onclick = (e) => {
+      e.stopPropagation(); 
+      deleteChat(realIndex);
+    };
+    
+    d.appendChild(titleSpan);
+    d.appendChild(delBtn);
+    h.appendChild(d);
+  });
+}
+
+function deleteChat(index) {
+  chats.splice(index, 1);
+  localStorage.setItem(getChatKey(), JSON.stringify(chats));
+  renderHist();
+}
+
+async function send() {
+  if(!currentUser){ openAuth(); return; }
+  const inp = document.getElementById('inp');
+  const text = inp.value.trim();
+  if(!text) return;
+  
+  addBubble('user', text);
+  cur.push({role:'user', content:text});
+  inp.value = '';
+  
+  const msgsContainer = document.getElementById('msgs');
+  msgsContainer.scrollTop = msgsContainer.scrollHeight; 
+  
+  const holder = addBubble('a','<span id="stream"><span class="HoshAI-brand">HoshAI</span> is thinking...</span>');
+  const streamEl = document.getElementById('stream');
+  
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:cur, mode, systemPrompt:getSystemPrompt(mode)})
+    });
+    
+    if(!res.ok){ const err = await res.text(); throw new Error(err); }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let full = '';
+    
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      const chunk = dec.decode(value);
+      for(const line of chunk.split('\n')){
+        if(line.startsWith('data: ')){
+          const d = line.slice(6);
+          if(d === '[DONE]') continue;
+          try {
+            const j = JSON.parse(d);
+            const delta = j.choices?.[0]?.delta?.content;
+            if(delta){
+              full += delta;
+              streamEl.innerHTML = full.replace(/\n/g,'<br>');
+              msgsContainer.scrollTop = msgsContainer.scrollHeight;
+            }
+          } catch(e) {}
+        }
+      }
+    }
+    cur.push({role:'assistant', content:full});
+    
+    chats.push({title: text.slice(0,30) + '...', at: Date.now()}); 
+    localStorage.setItem(getChatKey(), JSON.stringify(chats.slice(-20))); 
+    renderHist();
+    
+  } catch(e) {
+    holder.innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`;
   }
 }
+loadUserChats();
 updateAuthUI();
 
 const TYPING_PHRASES = ["Let's design","Let's discover","Let's HoshAI","Let's Idea to Live Product","Let's Try","HoshAI"];
@@ -307,6 +410,70 @@ function typeLoop(){
   setTimeout(typeLoop, deleting?45:95);
 }
 window.addEventListener('DOMContentLoaded', ()=>{ setTimeout(typeLoop, 600); });
+
+// Web Speech API Voice Typing
+let recognition;
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Your browser does not support voice typing. Chrome is recommended.");
+    return;
+  }
+  
+  if (recognition && document.getElementById('micBtn').style.background.includes('rgba(255, 68, 68')) {
+    recognition.stop();
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  // By omitting recognition.lang, the browser defaults to its UI language or native settings
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  
+  recognition.onstart = () => { 
+    document.getElementById('micBtn').style.background = 'rgba(255, 68, 68, 0.3)'; 
+  };
+  recognition.onend = () => { 
+    document.getElementById('micBtn').style.background = 'rgba(255,255,255,0.06)'; 
+  };
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      transcript += event.results[i][0].transcript;
+    }
+    document.getElementById('inp').value = transcript;
+  };
+  
+  recognition.start();
+}
+
+// Drag & Drop File Upload
+const dropZone = document.getElementById('msgs');
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.style.border = '2px dashed #00E5FF';
+  dropZone.style.opacity = '0.7';
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dropZone.style.border = 'none';
+  dropZone.style.opacity = '1';
+});
+
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.style.border = 'none';
+  dropZone.style.opacity = '1';
+  handleFileUpload(e.dataTransfer.files);
+});
+
+function handleFileUpload(files) {
+  if (!files || files.length === 0) return;
+  const file = files[0];
+  addBubble('user', `📎 <b>${file.name}</b> (Ready for processing)`);
+  cur.push({role:'user', content: `User uploaded a file named ${file.name}. (Content processing is not implemented yet)`});
+}
 
 </script>
 

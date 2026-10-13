@@ -1,20 +1,23 @@
-# HoshAI v2 - Final with Logo
+# HoshAI Platform - Idea to Live Product
 
-## چی تغییر کرد نسبت به ورژن قبلی شما:
-1. لوگوی اصلی (مغز + چیپ قرمز) به nav و favicon و auth اضافه شد
-2. signup.js و login.js با bcrypt-like hardening و rate limit ذهنی
-3. google.js: GOOGLE_CLIENT_ID از env خوانده میشه (نه هاردکد)
-4. schema.sql: ستون picture و provider اضافه شد
-5. index.html: دیزاین جدید با لوگو، انیمیشن تایپ، responsive بهتر
-6. امنیت: HttpOnly نیست چون Cloudflare Pages، ولی localStorage handling بهتر
+## Project Architecture & Features:
+1. **Frontend:** Vanilla JS Single Page Application (`index.html`).
+2. **Backend:** Cloudflare Pages Functions (Serverless).
+3. **Database:** Cloudflare D1 (SQLite).
+4. **Authentication:** Secure Email/Password (SHA-256 salted) & Google OAuth 2.0.
+5. **AI Engine:** DeepSeek API integrated via secure server-side fetching.
+6. **Chat System:** Features user isolation, chat history management, file attachment UI, and Web Speech API voice typing.
+7. **Clean Codebase:** 100% English code, logs, and comments.
 
-## نصب:
-1. D1: hoshai_users بساز و schema.sql رو اجرا کن
-2. Binding: USERS_DB -> hoshai_users
-3. Secrets:
-   DEEPSEEK_API_KEY
-   ADMIN_SECRET
-   GOOGLE_CLIENT_ID = 558707911564-7rij1tf1lqkk1ofujj... (از کنسول گوگل)
-4. Deploy
-
-لوگو در /logo.png
+## Deployment Instructions:
+1. **Database Setup:** 
+   - Create a D1 database named `hoshai_users`.
+   - Run the `schema.sql` file to create the tables.
+2. **Bindings:** 
+   - Go to Cloudflare Pages > Settings > Functions > D1 bindings.
+   - Add binding: Variable `USERS_DB` -> select your D1 database.
+3. **Environment Variables (Secrets):**
+   - `DEEPSEEK_API_KEY`: Your DeepSeek API key.
+   - `ADMIN_SECRET`: Custom secret for the `/api/users` endpoint.
+   - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
+4. **Deploy:** Push your repository to Cloudflare Pages.
