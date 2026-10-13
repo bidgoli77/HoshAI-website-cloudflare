@@ -1,9 +1,13 @@
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
-    const { name, email, pass } = await request.json();
+    const body = await request.json();
+    const name = body.name;
+    const email = body.email;
+    const pass = body.password || body.pass;
+    
     if (!name || !email || !pass) {
-      return Response.json({ error: 'Missing fields' }, { status: 400 });
+      return Response.json({ error: 'Missing fields: ' + JSON.stringify(body) }, { status: 400 });
     }
     const emailNorm = email.trim().toLowerCase();
     const existing = await env.D1_USERS_DB.prepare(
@@ -15,7 +19,7 @@ export async function onRequestPost(context) {
     await env.D1_USERS_DB.prepare(
       "INSERT INTO users (email, name, password_hash, created_at) VALUES (?, ?, ?, datetime('now'))"
     ).bind(emailNorm, name, pass).run();
-    return Response.json({ ok: true, name, email: emailNorm });
+    return Response.json({ ok: true, user: { name, email: emailNorm } });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
