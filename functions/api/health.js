@@ -1,0 +1,1 @@
+export async function onRequestGet(){return new Response(JSON.stringify({status:'ok', service:'HoshAI', db:'D1 USERS_DB', endpoints:['/api/chat','/api/signup','/api/login','/api/users?admin_secret=...']}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}})}

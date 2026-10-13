@@ -1,30 +1,41 @@
-# HoshAI - Cloudflare Pages
+# HoshAI - Pages + D1 Database - Save users & emails
 
-## Deploy Steps
-1. Push this repo to GitHub
-2. Go to https://dash.cloudflare.com > Workers & Pages > Create > Pages > Connect to Git
-3. Select this repo
-4. Build settings:
-   - Framework preset: None
-   - Build command: (leave empty)
-   - Output directory: /
-5. Before first deploy, go to Settings > Variables and Secrets > Add:
-   - Variable name: DEEPSEEK_API_KEY
-   - Value: your DeepSeek API key (get from https://platform.deepseek.com/api-keys)
-   - Type: Secret (encrypted)
-   - Environment: Production + Preview
+SETUP IN 2 MINUTES:
 
-6. Save and Deploy
-7. After deploy: Pages > Custom domains > Add hoshai.com + www.hoshai.com
+1. Create D1:
+dash.cloudflare.com > D1 > Create database > Name: hoshai_users
 
-## Endpoints
-- /api/chat -> functions/api/chat.js (DeepSeek proxy, branded as HoshAI)
+2. Create table:
+Click hoshai_users > Console > paste this and Run:
 
-## Security
-- API key is server-side only (env.DEEPSEEK_API_KEY), never exposed to client
-- Users stored in localStorage as SHA-256 hash (hoshai_users_v2)..
-- CORS enabled for streaming
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  pass_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
-## Fix for Signup issue
-If signup doesn't work on old browser, clear localStorage:
-DevTools (F12) > Application > Local Storage > hoshai.com > Clear
+3. Bind D1 to Pages:
+Pages > hoshai-website > Settings > Functions > D1 bindings > Add binding
+Variable: USERS_DB
+Database: hoshai_users
+Save
+
+4. Add Secrets:
+Settings > Variables and Secrets > Add:
+- DEEPSEEK_API_KEY = your DeepSeek key (Secret, Production+Preview)
+- ADMIN_SECRET = choose strong like HoshAI2026Secret! (Secret)
+
+5. Deploy:
+Push this code to GitHub -> auto deploy
+
+6. Test:
+hoshai.com/api/health
+Signup on site
+hoshai.com/api/users?admin_secret=YOUR_ADMIN_SECRET -> see all emails
+
+Marketing:
+Export that JSON and import to Mailchimp/Resend/ConvertKit for campaigns.
+We can add automatic welcome email via Resend later.

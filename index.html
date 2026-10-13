@@ -175,14 +175,54 @@ function switchTab(t){
   if(t==='signup'){ $('tabSignup').classList.add('active');$('tabLogin').classList.remove('active');$('signupForm').style.display='block';$('loginForm').style.display='none';}
   else{ $('tabLogin').classList.add('active');$('tabSignup').classList.remove('active');$('loginForm').style.display='block';$('signupForm').style.display='none';}
 }
+
 async function handleSignup(){
-  const name=$('suName').value.trim(), email=$('suEmail').value.trim().toLowerCase(), pass=$('suPass').value;
-  if(!name||!email||!pass||pass.length<6){showErr('Fill all fields, password min 6');return}
-  if(users.find(u=>u.email===email)){showErr('Already registered, please log in');return}
-  const passHash=await sha256(pass);
-  const u={name,email,passHash, created: Date.now()};users.push(u);localStorage.setItem('hoshai_users_v2',JSON.stringify(users));localStorage.setItem('hoshai_user',JSON.stringify({name,email}));currentUser={name,email};updateAuthUI();$('authOverlay').style.display='none';
+  const btn = document.querySelector('#signupForm button');
+  const name=document.getElementById('suName').value.trim();
+  const email=document.getElementById('suEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('suPass').value;
+  if(!name||!email||!pass){showErr('Please fill all fields');return}
+  const emailOk = email.includes('@') && email.includes('.');
+  if(!emailOk){showErr('Invalid email');return}
+  if(pass.length<6){showErr('Password min 6 chars');return}
+  btn.innerText='Creating...'; btn.disabled=true;
+  try{
+    const res = await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pass})});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Signup failed');
+    localStorage.setItem('hoshai_user',JSON.stringify(data.user));
+    currentUser=data.user;
+    updateAuthUI();
+    document.getElementById('authOverlay').style.display='none';
+    document.getElementById('suName').value=''; document.getElementById('suEmail').value=''; document.getElementById('suPass').value='';
+  }catch(e){ showErr(e.message); }
+  finally{ btn.innerText='Create Account →'; btn.disabled=false; }
 }
+
 async function handleLogin(){
+  const btn = document.querySelector('#loginForm button');
+  const email=document.getElementById('liEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('liPass').value;
+  if(!email||!pass){showErr('Fill email and password');return}
+  btn.innerText='Logging in...'; btn.disabled=true;
+  try{
+    const res = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Login failed');
+    localStorage.setItem('hoshai_user',JSON.stringify(data.user));
+    currentUser=data.user;
+    updateAuthUI();
+    document.getElementById('authOverlay').style.display='none';
+    document.getElementById('liEmail').value=''; document.getElementById('liPass').value='';
+  }catch(e){ showErr(e.message); }
+  finally{ btn.innerText='Log In →'; btn.disabled=false; }
+}
+
+function handleSignup_OLD_DISABLED(){}
+function handleLogin_OLD_DISABLED(){}
+
+async function handleLogin_ORIGINAL_DISABLED(){
+
   const email=$('liEmail').value.trim().toLowerCase(), pass=$('liPass').value;
   const passHash=await sha256(pass);
   const u=users.find(x=>x.email===email && x.passHash===passHash);
