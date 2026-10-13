@@ -16,5 +16,5 @@
    ADMIN_SECRET
    GOOGLE_CLIENT_ID = 558707911564-7rij1tf1lqkk1ofujj... (از کنسول گوگل)
 4. Deploy
-.
+
 لوگو در /logo.png
