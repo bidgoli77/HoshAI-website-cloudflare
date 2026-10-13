@@ -1,4 +1,3 @@
-
 export async function onRequestPost(context){
   const { request, env } = context;
   try{
@@ -10,13 +9,15 @@ export async function onRequestPost(context){
       return json({error:'D1 database not bound. Go to Pages > Settings > Functions > D1 bindings > Add binding: Variable USERS_DB -> your D1'},500);
     }
     const lowerEmail = email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(lowerEmail)) return json({error:'Invalid email format'},400);
     const existing = await env.USERS_DB.prepare('SELECT id FROM users WHERE email = ?').bind(lowerEmail).first();
     if(existing){
       return json({error:'Email already registered, please log in'},409);
     }
-    const passHash = await sha256(password);
+    const passHash = await sha256(password + lowerEmail); // salt with email
     const id = crypto.randomUUID();
-    await env.USERS_DB.prepare('INSERT INTO users (id, name, email, pass_hash, created_at) VALUES (?, ?, ?, ?, ?)').bind(id, name.trim(), lowerEmail, passHash, Date.now()).run();
+    await env.USERS_DB.prepare('INSERT INTO users (id, name, email, pass_hash, provider, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(id, name.trim(), lowerEmail, passHash, 'email', Date.now()).run();
     return json({ok:true, user:{id, name:name.trim(), email:lowerEmail}});
   }catch(e){
     return json({error:e.message},500);

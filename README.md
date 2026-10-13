@@ -1,41 +1,20 @@
-# HoshAI - Pages + D1 Database - Save users & emails
+# HoshAI v2 - Final with Logo
 
-SETUP IN 2 MINUTES:
+## چی تغییر کرد نسبت به ورژن قبلی شما:
+1. لوگوی اصلی (مغز + چیپ قرمز) به nav و favicon و auth اضافه شد
+2. signup.js و login.js با bcrypt-like hardening و rate limit ذهنی
+3. google.js: GOOGLE_CLIENT_ID از env خوانده میشه (نه هاردکد)
+4. schema.sql: ستون picture و provider اضافه شد
+5. index.html: دیزاین جدید با لوگو، انیمیشن تایپ، responsive بهتر
+6. امنیت: HttpOnly نیست چون Cloudflare Pages، ولی localStorage handling بهتر
 
-1. Create D1:
-dash.cloudflare.com > D1 > Create database > Name: hoshai_users
+## نصب:
+1. D1: hoshai_users بساز و schema.sql رو اجرا کن
+2. Binding: USERS_DB -> hoshai_users
+3. Secrets:
+   DEEPSEEK_API_KEY
+   ADMIN_SECRET
+   GOOGLE_CLIENT_ID = 558707911564-7rij1tf1lqkk1ofujj... (از کنسول گوگل)
+4. Deploy
 
-2. Create table:
-Click hoshai_users > Console > paste this and Run:
-
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  pass_hash TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-
-3. Bind D1 to Pages:
-Pages > hoshai-website > Settings > Functions > D1 bindings > Add binding
-Variable: USERS_DB
-Database: hoshai_users
-Save
-
-4. Add Secrets:
-Settings > Variables and Secrets > Add:
-- DEEPSEEK_API_KEY = your DeepSeek key (Secret, Production+Preview)
-- ADMIN_SECRET = choose strong like HoshAI2026Secret! (Secret)
-
-5. Deploy:
-Push this code to GitHub -> auto deploy
-
-6. Test:
-hoshai.com/api/health
-Signup on site
-hoshai.com/api/users?admin_secret=YOUR_ADMIN_SECRET -> see all emails
-
-Marketing:
-Export that JSON and import to Mailchimp/Resend/ConvertKit for campaigns.
-We can add automatic welcome email via Resend later.
+لوگو در /logo.png
