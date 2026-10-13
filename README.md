@@ -8,7 +8,6 @@
 5. **AI Engine:** DeepSeek API integrated via secure server-side fetching.
 6. **Chat System:** Features user isolation, chat history management, file attachment UI, and Web Speech API voice typing.
 7. **Clean Codebase:** 100% English code, logs, and comments.
-8. **UI Bugfix:** Fixed mobile chat scroll height hiding the input `.bar`.
 
 ## Deployment Instructions:
 1. **Database Setup:** 
@@ -22,7 +21,3 @@
    - `ADMIN_SECRET`: Custom secret for the `/api/users` endpoint.
    - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
 4. **Deploy:** Push your repository to Cloudflare Pages.
-
-9. **Critical Bugfix:** Fixed a JavaScript syntax error (escaping quotes) that caused the login buttons to become unresponsive.
-10. **Critical Bugfix:** Fixed SSE chunk parsing (newline split bug) causing chat to hang indefinitely on 'thinking...'.
-11. **UI Bugfix:** Added dynamic IDs for chat streams to support multiple continuous questions without refreshing.
