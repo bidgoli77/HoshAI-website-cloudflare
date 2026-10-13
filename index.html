@@ -168,12 +168,8 @@ Example: "An AI platform that turns customer interviews into PRDs"
 
 → Built entirely by <span class="HoshAI-brand">HoshAI</span>.</div>
 </div>
-<div id="filesPreview" class="files-preview" style="display:none"></div>
 <div class="bar">
-<button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Attach">📎</button>
-<input type="file" id="fileInput" hidden multiple accept="image/*,application/pdf,.txt,.js,.json,.csv,.md">
-<input id="inp" placeholder="Ask HoshAI anything, attach files, or use 🎙️" onkeydown="if(event.key==='Enter')send()">
-<button class="mic-btn" id="micBtn" onclick="toggleVoice()" title="Voice to text">🎙️</button>
+<input id="inp" placeholder="Ask HoshAI anything or describe your idea..." onkeydown="if(event.key==='Enter')send()">
 <button class="btn btn-glow" onclick="send()">Send →</button>
 </div>
 </div>
@@ -188,27 +184,16 @@ Example: "An AI platform that turns customer interviews into PRDs"
 </div>
 
 
-
 <script>
+let chats=JSON.parse(localStorage.getItem('hoshai_chats_final2')||'[]');
 let cur=[];let currentUser=JSON.parse(localStorage.getItem('hoshai_user')||'null');
+let users=JSON.parse(localStorage.getItem('hoshai_users_v2')||'[]');
 let mode=localStorage.getItem('hoshai_mode')||'chat';
 const $=s=>document.getElementById(s);
-
-function getHistoryKey(){
-  try{
-    if(!currentUser || !currentUser.email) return 'hoshai_chats_guest';
-    return 'hoshai_chats_'+currentUser.email.toLowerCase();
-  }catch(e){ return 'hoshai_chats_guest'; }
-}
-function getChats(){
-  return JSON.parse(localStorage.getItem(getHistoryKey())||'[]');
-}
-function saveChats(arr){
-  localStorage.setItem(getHistoryKey(), JSON.stringify(arr.slice(-30)));
-}
-
-function setMode(m){mode=m;localStorage.setItem('hoshai_mode',m);document.querySelectorAll('.mode').forEach(e=>e.classList.remove('active'));if(m==='chat'){$('modeChat').classList.add('active')}else{$('modeBuild').classList.add('active')}}
+function setMode(m){mode=m;localStorage.setItem('hoshai_mode',m);document.querySelectorAll('.mode').forEach(e=>e.classList.remove('active'));if(m==='chat'){document.getElementById('modeChat').classList.add('active')}else{document.getElementById('modeBuild').classList.add('active')}}
 setMode(mode);
+
+async function sha256(str){const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 
 function updateAuthUI(){
   if(currentUser){
@@ -216,11 +201,9 @@ function updateAuthUI(){
     if($('msgs').children.length===0 || $('msgs').querySelector('.locked')){
       $('msgs').innerHTML='<div class="bubble a">Welcome back '+currentUser.name+'! 👋<br><br>I\'m <span class="HoshAI-brand">HoshAI</span> — your product builder.<br><br>💬 <b>Chat:</b> Ask anything<br>🚀 <b>Build:</b> Describe idea → live product</div>';
     }
-    renderHist();
   }else{
     $('userBadge').style.display='none';$('logoutBtn').style.display='none';$('authBtn').style.display='inline-block';
     $('msgs').innerHTML='<div class="locked"><div style="font-size:32px">🔒</div><h3>Authentication Required</h3><p style="font-size:13px;max-width:300px">Create a free account to chat with <span class="HoshAI-brand">HoshAI</span> and turn ideas into live products.</p><button class="btn btn-white" style="margin-top:16px" onclick="openAuth()">Create Free Account</button></div>';
-    $('hist').innerHTML='';
   }
 }
 function openAuth(){ $('authOverlay').style.display='flex'; }
@@ -229,132 +212,102 @@ function switchTab(t){
   else{ $('tabLogin').classList.add('active');$('tabSignup').classList.remove('active');$('loginForm').style.display='block';$('signupForm').style.display='none';}
 }
 async function handleSignup(){
-  const btn=document.querySelector('#signupForm button');const name=$('suName').value.trim();const email=$('suEmail').value.trim().toLowerCase();const pass=$('suPass').value;
+  const btn = document.querySelector('#signupForm button');
+  const name=document.getElementById('suName').value.trim();
+  const email=document.getElementById('suEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('suPass').value;
   if(!name||!email||!pass){showErr('Please fill all fields');return}
+  const emailOk = email.includes('@') && email.includes('.');
+  if(!emailOk){showErr('Invalid email');return}
   if(pass.length<6){showErr('Password min 6 chars');return}
-  btn.innerText='Creating...';btn.disabled=true;
-  try{const res=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pass})});const data=await res.json();if(!res.ok) throw new Error(data.error||'Signup failed');localStorage.setItem('hoshai_user',JSON.stringify(data.user));currentUser=data.user;updateAuthUI();$('authOverlay').style.display='none';}catch(e){showErr(e.message);}finally{btn.innerText='Create Account →';btn.disabled=false;}
-}
-async function handleLogin(){
-  const btn=document.querySelector('#loginForm button');const email=$('liEmail').value.trim().toLowerCase();const pass=$('liPass').value;
-  if(!email||!pass){showErr('Fill email and password');return}
-  btn.innerText='Logging in...';btn.disabled=true;
-  try{const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});const data=await res.json();if(!res.ok) throw new Error(data.error||'Login failed');localStorage.setItem('hoshai_user',JSON.stringify(data.user));currentUser=data.user;updateAuthUI();$('authOverlay').style.display='none';}catch(e){showErr(e.message);}finally{btn.innerText='Log In →';btn.disabled=false;}
-}
-function logout(){localStorage.removeItem('hoshai_user');currentUser=null;cur=[];updateAuthUI();}
-function showErr(m){const e=$('authError');e.innerText=m;e.style.display='block';setTimeout(()=>e.style.display='none',3500)}
-function getSystemPrompt(m){if(m==='chat'){return `You are HoshAI, created by HoshAI.com. You are an advanced AI chatbot and product builder. You were built by HoshAI team, not by any other company. Never mention DeepSeek, OpenAI, Anthropic or any other provider. Always say you are HoshAI, powered by HoshAI Engine. Answer helpfully, concisely, with Space Grotesk style branding. If asked who made you, say: "I am HoshAI, built by HoshAI.com - Idea to Live Product platform." English only.`;} else {return `You are HoshAI Builder, the Idea to Live Product engine from HoshAI.com. You help users turn ideas into live products. Provide Vision, MVP features (5 bullets), Tech stack, Monetization, Launch steps. You are HoshAI, built by HoshAI. Never mention DeepSeek or other companies. Always brand as HoshAI Engine. If asked who you are, say you are HoshAI. English only, futuristic tone.`;}}
-function newChat(){if(!currentUser){openAuth();return}cur=[];$('msgs').innerHTML='<div class="bubble a">New <span class="HoshAI-brand">HoshAI</span> session started in '+mode+' mode. Describe your idea...</div>'}
-function addBubble(role,html){const m=$('msgs');const d=document.createElement('div');d.className='bubble '+(role==='user'?'u':'a');d.innerHTML=html;m.appendChild(d);setTimeout(()=>{m.scrollTop=m.scrollHeight},50);return d}
-function renderHist(){
-  const h=$('hist'); if(!h) return;
-  const chats=getChats();
-  if(!chats.length){h.innerHTML='<div style="opacity:.5;font-size:12px;padding:8px">No chats yet for this account</div>';return;}
-  h.innerHTML=chats.slice(-20).reverse().map(c=>`<div class="chat-item ${c.id===cur.id?'active':''}" onclick="openChat('${c.id}')"><span style='flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>${c.title.slice(0,30)}</span><button class='del' onclick="deleteChat('${c.id}', event)">×</button></div>`).join('');
-}
-function openChat(id){
-  const chats=getChats();
-  const c=chats.find(x=>x.id===id);
-  if(!c) return;
-  cur=c.messages||[];
-  $('msgs').innerHTML='';
-  cur.forEach(m=>{ addBubble(m.role==='user'?'u':'a', m.content.replace(/
-/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')); });
-}
-function deleteChat(id, ev){
-  ev.stopPropagation();
-  if(!confirm('Delete this chat?')) return;
-  let chats=getChats();
-  chats=chats.filter(c=>c.id!==id);
-  saveChats(chats);
-  renderHist();
-  if(cur.id===id) newChat();
+  btn.innerText='Creating...'; btn.disabled=true;
+  try{
+    const res = await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pass})});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Signup failed');
+    localStorage.setItem('hoshai_user',JSON.stringify(data.user));
+    currentUser=data.user;
+    updateAuthUI();
+    document.getElementById('authOverlay').style.display='none';
+    document.getElementById('suName').value=''; document.getElementById('suEmail').value=''; document.getElementById('suPass').value='';
+  }catch(e){ showErr(e.message); }
+  finally{ btn.innerText='Create Account →'; btn.disabled=false; }
 }
 
-// --- FILE UPLOAD ---
-let attachedFiles=[];
-const fileInput=document.getElementById('fileInput');
-const filesPreview=document.getElementById('filesPreview');
-if(fileInput){
-  fileInput.addEventListener('change', e=>{ handleFiles(e.target.files); });
+async function handleLogin(){
+  const btn = document.querySelector('#loginForm button');
+  const email=document.getElementById('liEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('liPass').value;
+  if(!email||!pass){showErr('Fill email and password');return}
+  btn.innerText='Logging in...'; btn.disabled=true;
+  try{
+    const res = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Login failed');
+    localStorage.setItem('hoshai_user',JSON.stringify(data.user));
+    currentUser=data.user;
+    updateAuthUI();
+    document.getElementById('authOverlay').style.display='none';
+    document.getElementById('liEmail').value=''; document.getElementById('liPass').value='';
+  }catch(e){ showErr(e.message); }
+  finally{ btn.innerText='Log In →'; btn.disabled=false; }
 }
-function handleFiles(list){
-  for(let f of list) attachedFiles.push(f);
-  renderFiles();
+
+
+function logout(){localStorage.removeItem('hoshai_user');currentUser=null;updateAuthUI()}
+function showErr(m){const e=$('authError');e.innerText=m;e.style.display='block';setTimeout(()=>e.style.display='none',3500)}
+
+function getSystemPrompt(m){
+  if(m==='chat'){
+    return `You are HoshAI, created by HoshAI.com. You are an advanced AI chatbot and product builder. You were built by HoshAI team, not by any other company. Never mention DeepSeek, OpenAI, Anthropic or any other provider. Always say you are HoshAI, powered by HoshAI Engine. Answer helpfully, concisely, with Space Grotesk style branding. If asked who made you, say: "I am HoshAI, built by HoshAI.com - Idea to Live Product platform." English only.`;
+  } else {
+    return `You are HoshAI Builder, the Idea to Live Product engine from HoshAI.com. You help users turn ideas into live products. Provide Vision, MVP features (5 bullets), Tech stack, Monetization, Launch steps. You are HoshAI, built by HoshAI. Never mention DeepSeek or other companies. Always brand as HoshAI Engine. If asked who you are, say you are HoshAI. English only, futuristic tone.`;
+  }
 }
-function renderFiles(){
-  if(!attachedFiles.length){filesPreview.style.display='none';filesPreview.innerHTML='';return;}
-  filesPreview.style.display='flex';
-  filesPreview.innerHTML=attachedFiles.map((f,i)=>`<span class='file-chip'>${f.name.slice(0,25)} <button onclick='removeFile(${i})'>×</button></span>`).join('');
-}
-function removeFile(i){attachedFiles.splice(i,1);renderFiles();}
-function clearFiles(){attachedFiles=[];if(filesPreview){filesPreview.style.display='none';filesPreview.innerHTML='';} if(fileInput) fileInput.value='';}
-const msgsEl=$('msgs');
-if(msgsEl){
-  msgsEl.addEventListener('dragover', e=>{e.preventDefault();msgsEl.classList.add('drag-over');});
-  msgsEl.addEventListener('dragleave', e=>{msgsEl.classList.remove('drag-over');});
-  msgsEl.addEventListener('drop', e=>{e.preventDefault();msgsEl.classList.remove('drag-over'); if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);});
-}
-// --- VOICE ---
-let recognition=null,isRecording=false;
-function toggleVoice(){
-  const btn=$('micBtn');
-  if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)){alert('Browser does not support voice, use Chrome');return;}
-  if(isRecording){recognition.stop();return;}
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  recognition=new SR();
-  recognition.lang='fa-IR';
-  recognition.interimResults=true;
-  recognition.onstart=()=>{isRecording=true;btn.classList.add('recording');btn.textContent='🔴';};
-  recognition.onend=()=>{isRecording=false;btn.classList.remove('recording');btn.textContent='🎙️';};
-  recognition.onresult=(e)=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript; $('inp').value=t;};
-  recognition.start();
-}
+
+function newChat(){if(!currentUser){openAuth();return}cur=[];$('msgs').innerHTML='<div class="bubble a">New <span class="HoshAI-brand">HoshAI</span> session started in '+mode+' mode. Describe your idea...</div>'}
+function addBubble(role,html){const m=$('msgs');const d=document.createElement('div');d.className='bubble '+(role==='user'?'u':'a');d.innerHTML=html;m.appendChild(d);m.scrollTop=m.scrollHeight;return d}
+function renderHist(){const h=$('hist');if(!h) return;h.innerHTML='';chats.slice(-7).reverse().forEach(c=>{const d=document.createElement('div');d.style.cssText='padding:8px 10px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#888;cursor:pointer';d.innerText=c.title;h.appendChild(d)})}
+renderHist();
 
 async function send(){
   if(!currentUser){openAuth();return}
-  const inp=$('inp');let text=inp.value.trim();
-  if(!text && !attachedFiles.length) return;
-  let fileNote='';
-  if(attachedFiles.length){
-    fileNote='
-[User attached: '+attachedFiles.map(f=>f.name+' ('+(f.size/1024).toFixed(0)+'KB)').join(', ')+']';
-    for(let f of attachedFiles){
-      if(f.type.startsWith('image/')){
-        const reader=new FileReader();
-        reader.onload=e=>{ addBubble('u', `<img src='${e.target.result}' style='max-width:100%;border-radius:12px'><br>${f.name}`); };
-        reader.readAsDataURL(f);
-      }
-    }
-  }
-  const fullText=text+fileNote;
-  if(text) addBubble('u', text + (attachedFiles.length?'<br><small style=opacity:.6>'+attachedFiles.map(f=>'📎 '+f.name).join('<br>')+'</small>':''));
-  else if(attachedFiles.length) addBubble('u', '<small>'+attachedFiles.map(f=>'📎 '+f.name).join('<br>')+'</small>');
-  cur.push({role:'user',content:fullText});
-  inp.value='';
+  const inp=$('inp');const text=inp.value.trim();if(!text)return;
+  addBubble('user',text);cur.push({role:'user',content:text});inp.value='';
   const holder=addBubble('a','<span id="stream"><span class="HoshAI-brand">HoshAI</span> is thinking...</span>');const streamEl=document.getElementById('stream');
   try{
     const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:cur,mode,systemPrompt:getSystemPrompt(mode)})});
-    if(!res.ok){const err=await res.text();throw new Error(err);}
+    if(!res.ok){const err=await res.text(); throw new Error(err);}
     const reader=res.body.getReader();const dec=new TextDecoder();let full='';
-    while(true){const {done,value}=await reader.read();if(done)break;const chunk=dec.decode(value);for(const line of chunk.split('
-')){if(line.startsWith('data: ')){const d=line.slice(6);if(d==='[DONE]')continue;try{const j=JSON.parse(d);const delta=j.choices?.[0]?.delta?.content;if(delta){full+=delta;let html=full.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(/
-/g,'<br>');streamEl.innerHTML=html;$('msgs').scrollTop=$('msgs').scrollHeight;}}catch{}}}}
+    while(true){const {done,value}=await reader.read();if(done)break;const chunk=dec.decode(value);for(const line of chunk.split('\n')){if(line.startsWith('data: ')){const d=line.slice(6);if(d==='[DONE]')continue;try{const j=JSON.parse(d);const delta=j.choices?.[0]?.delta?.content;if(delta){full+=delta;streamEl.innerHTML=full.replace(/\n/g,'<br>');$('msgs').scrollTop=999999}}catch{}}}}
     cur.push({role:'assistant',content:full});
-    // save chat with per-user key
-    let chats=getChats();
-    const chatId=Date.now().toString();
-    chats.push({id:chatId,title:text.slice(0,40)||attachedFiles.map(f=>f.name).join(', '),messages:[...cur],at:Date.now()});
-    saveChats(chats);
-    renderHist();
-  }catch(e){holder.innerHTML='<span style="color:#ff6b6b">Error: '+e.message+'</span>';}
-  clearFiles();
+    // save to history
+    chats.push({title:text.slice(0,40), at:Date.now()}); localStorage.setItem('hoshai_chats_final2', JSON.stringify(chats.slice(-20))); renderHist();
+  }catch(e){
+    holder.innerHTML='<span style="color:#ff6b6b">Error: '+e.message+'<br>Check Cloudflare env DEEPSEEK_API_KEY is set.</span>';
+  }
 }
 updateAuthUI();
+
 const TYPING_PHRASES = ["Let's design","Let's discover","Let's HoshAI","Let's Idea to Live Product","Let's Try","HoshAI"];
 let tIdx=0, charIdx=0, deleting=false;
-function typeLoop(){const el=$('typingText');if(!el)return;const phrase=TYPING_PHRASES[tIdx];if(!deleting){el.innerHTML=phrase.substring(0,charIdx+1)+'<span class="idea-dot"></span>';charIdx++;if(charIdx===phrase.length){setTimeout(()=>{deleting=true;typeLoop();},1200);return;}}else{el.innerHTML=phrase.substring(0,charIdx-1)+'<span class="idea-dot"></span>';charIdx--;if(charIdx===0){deleting=false;tIdx=(tIdx+1)%TYPING_PHRASES.length;}}setTimeout(typeLoop, deleting?45:95);}
+function typeLoop(){
+  const el = document.getElementById('typingText');
+  if(!el) return;
+  const phrase = TYPING_PHRASES[tIdx];
+  if(!deleting){
+    el.innerHTML = phrase.substring(0,charIdx+1) + '<span class="idea-dot"></span>';
+    charIdx++;
+    if(charIdx===phrase.length){ setTimeout(()=>{deleting=true; typeLoop();}, 1200); return; }
+  } else {
+    el.innerHTML = phrase.substring(0,charIdx-1) + '<span class="idea-dot"></span>';
+    charIdx--;
+    if(charIdx===0){ deleting=false; tIdx=(tIdx+1)%TYPING_PHRASES.length; }
+  }
+  setTimeout(typeLoop, deleting?45:95);
+}
 window.addEventListener('DOMContentLoaded', ()=>{ setTimeout(typeLoop, 600); });
+
 </script>
 
 </body>
