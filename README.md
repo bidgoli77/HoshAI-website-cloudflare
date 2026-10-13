@@ -8,6 +8,7 @@
 5. **AI Engine:** DeepSeek API integrated via secure server-side fetching.
 6. **Chat System:** Features user isolation, chat history management, file attachment UI, and Web Speech API voice typing.
 7. **Clean Codebase:** 100% English code, logs, and comments.
+8. **UI Bugfix:** Fixed mobile chat scroll height hiding the input `.bar`.
 
 ## Deployment Instructions:
 1. **Database Setup:** 
