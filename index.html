@@ -203,6 +203,7 @@ Example: "An AI platform that turns customer interviews into PRDs"
 let currentUser = JSON.parse(localStorage.getItem('hoshai_user') || 'null');
 let chats = []; 
 let cur = [];
+let currentChatId = null;
 let mode = localStorage.getItem('hoshai_mode') || 'chat';
 const $ = s => document.getElementById(s);
 
@@ -212,6 +213,7 @@ function getChatKey() {
 
 function loadUserChats() {
   chats = JSON.parse(localStorage.getItem(getChatKey()) || '[]');
+  chats.forEach((c, i) => { if(!c.id) c.id = c.at || Date.now() + i; });
   renderHist();
 }
 
@@ -300,7 +302,7 @@ function getSystemPrompt(m){
   }
 }
 
-function newChat(){if(!currentUser){openAuth();return}cur=[];$('msgs').innerHTML='<div class="bubble a">New <span class="HoshAI-brand">HoshAI</span> session started in '+mode+' mode. Describe your idea...</div>'}
+function newChat(){if(!currentUser){openAuth();return}cur=[];currentChatId=null;$('msgs').innerHTML='<div class="bubble a">New <span class="HoshAI-brand">HoshAI</span> session started in '+mode+' mode. Describe your idea...</div>'}
 function addBubble(role, html) {
   const m = document.getElementById('msgs');
   const isUser = (role === 'user' || role === 'u');
@@ -337,15 +339,18 @@ function addBubble(role, html) {
   return d;
 }
 
-function loadChatFromHistory(index) {
-  if(!chats[index]) return;
-  cur = chats[index].messages || [];
+function loadChatFromHistory(id) {
+  const chat = chats.find(c => c.id === id);
+  if(!chat) return;
+  currentChatId = id;
+  cur = JSON.parse(JSON.stringify(chat.messages || []));
   
   const m = document.getElementById('msgs');
   m.innerHTML = '';
   
   if (cur.length === 0) {
-     newChat();
+     m.innerHTML = '<div class="bubble a">Old chat history not available. (Messages were not saved in the earlier versions of the site). Please start a new chat.</div>';
+     renderHist();
      return;
   }
   
@@ -357,30 +362,31 @@ function loadChatFromHistory(index) {
     }
     addBubble(msg.role, textContent);
   });
+  renderHist();
 }
-
 function renderHist() {
   const h = document.getElementById('hist');
   if (!h) return;
   h.innerHTML = '';
-  chats.slice(-7).reverse().forEach((c, index) => {
-    const realIndex = chats.length - 1 - index; 
+  chats.slice(-15).reverse().forEach((c) => {
     const d = document.createElement('div');
     d.style.cssText = 'padding:8px 10px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#888;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+    if (c.id === currentChatId) d.style.background = 'rgba(0, 229, 255, 0.15)';
     
     const titleSpan = document.createElement('span');
     titleSpan.style.overflow = 'hidden';
     titleSpan.style.textOverflow = 'ellipsis';
     titleSpan.style.whiteSpace = 'nowrap';
-    titleSpan.innerText = c.title;
     titleSpan.style.flex = '1';
-    d.onclick = () => loadChatFromHistory(realIndex);
+    titleSpan.innerText = c.title;
+    d.onclick = () => loadChatFromHistory(c.id);
+    
     const delBtn = document.createElement('span');
     delBtn.innerHTML = '&times;';
     delBtn.style.cssText = 'color:#ff6b6b;font-size:16px;padding:0 5px;cursor:pointer;font-weight:bold;';
     delBtn.onclick = (e) => {
       e.stopPropagation(); 
-      deleteChat(realIndex);
+      deleteChat(c.id);
     };
     
     d.appendChild(titleSpan);
@@ -388,11 +394,15 @@ function renderHist() {
     h.appendChild(d);
   });
 }
-
-function deleteChat(index) {
-  chats.splice(index, 1);
+function deleteChat(id) {
+  chats = chats.filter(c => c.id !== id);
   localStorage.setItem(getChatKey(), JSON.stringify(chats));
-  renderHist();
+  if (currentChatId === id) {
+      newChat();
+      renderHist();
+  } else {
+      renderHist();
+  }
 }
 
 async function send() {
@@ -490,7 +500,13 @@ async function send() {
       }
       cur.push({role:'assistant', content:full});
       
-      chats.push({title: histTitle + '...', at: Date.now(), messages: JSON.parse(JSON.stringify(cur))}); 
+      if (!currentChatId) {
+        currentChatId = Date.now();
+        chats.push({id: currentChatId, title: histTitle + '...', at: currentChatId, messages: JSON.parse(JSON.stringify(cur))});
+      } else {
+        const chat = chats.find(c => c.id === currentChatId);
+        if (chat) chat.messages = JSON.parse(JSON.stringify(cur));
+      }
       localStorage.setItem(getChatKey(), JSON.stringify(chats.slice(-20))); 
       renderHist();
       
