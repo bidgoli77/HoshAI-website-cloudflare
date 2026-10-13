@@ -339,64 +339,117 @@ async function send() {
   if(!currentUser){ openAuth(); return; }
   const inp = document.getElementById('inp');
   const text = inp.value.trim();
-  if(!text) return;
+  if(!text && !pendingFile) return; 
   
-  addBubble('user', text);
-  cur.push({role:'user', content:text});
+  const userPrompt = text || "Please review the attached file.";
+  const histTitle = text ? text.slice(0, 30) : (pendingFile ? pendingFile.name : 'New Chat');
+  
+  if (pendingFile) {
+     addBubble('user', `📎 <b>${pendingFile.name}</b><br>${userPrompt}`);
+  } else {
+     addBubble('user', userPrompt);
+  }
+  
   inp.value = '';
-  
+  inp.placeholder = "Ask HoshAI anything or drop a file here...";
   const msgsContainer = document.getElementById('msgs');
   msgsContainer.scrollTop = msgsContainer.scrollHeight; 
-  
+
+  let messageContent = userPrompt;
+
   const streamId = 'stream_' + Date.now();
-  const holder = addBubble('a', `<span id=\"${streamId}\"><span class="HoshAI-brand">HoshAI</span> is thinking...</span>`);
+  const holder = addBubble('a', `<span id="${streamId}"><span class="HoshAI-brand">HoshAI</span> is processing...</span>`);
   const streamEl = document.getElementById(streamId);
-  
+  msgsContainer.scrollTop = msgsContainer.scrollHeight;
+
   try {
-    const res = await fetch('/api/chat', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:cur, mode, systemPrompt:getSystemPrompt(mode)})
-    });
-    
-    if(!res.ok){ const err = await res.text(); throw new Error(err); }
-    const reader = res.body.getReader();
-    const dec = new TextDecoder("utf-8");
-    let full = '';
-    let buffer = '';
-    
-    while(true){
-      const {done, value} = await reader.read();
-      if(done) break;
-      buffer += dec.decode(value, {stream: true});
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Keep the incomplete line in the buffer
-      
-      for(let line of lines){
-        line = line.trim();
-        if(line.startsWith('data: ')){
-          const d = line.slice(6);
-          if(d === '[DONE]') continue;
+      if (pendingFile) {
+        if (pendingFile.type.startsWith('image/')) {
+          streamEl.innerHTML = '<span class="HoshAI-brand">HoshAI</span> is reading image...';
+          const base64 = await toBase64(pendingFile);
+          messageContent = [
+            {type: "text", text: userPrompt},
+            {type: "image_url", image_url: {url: base64}}
+          ];
+        } else if (pendingFile.type === 'application/pdf') {
+          streamEl.innerHTML = '<span class="HoshAI-brand">HoshAI</span> is reading PDF...';
+          const pdfText = await extractPDFText(pendingFile);
+          messageContent = `[File Attached: ${pendingFile.name}]
+
+--- Document Content (Extracted) ---
+${pdfText}
+------------------------
+
+User Prompt: ${userPrompt}`;
+        } else {
           try {
-            const j = JSON.parse(d);
-            const delta = j.choices?.[0]?.delta?.content;
-            if(delta){
-              full += delta;
-              streamEl.innerHTML = full.replace(/\n/g,'<br>');
-              msgsContainer.scrollTop = msgsContainer.scrollHeight;
-            }
+             const fileText = await pendingFile.text();
+             messageContent = `[File Attached: ${pendingFile.name}]
+
+--- File Content ---
+${fileText.substring(0, 20000)}
+------------------------
+
+User Prompt: ${userPrompt}`;
           } catch(e) {
-            // Ignore incomplete JSON chunks silently
+             messageContent = userPrompt + `
+
+(Note: User attached a file named ${pendingFile.name} but its contents could not be read)`;
+          }
+        }
+        pendingFile = null; 
+        document.getElementById('fileInp').value = ""; // Reset file input
+      }
+
+      cur.push({role:'user', content: messageContent});
+      streamEl.innerHTML = '<span class="HoshAI-brand">HoshAI</span> is thinking...';
+      
+      const res = await fetch('/api/chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({messages:cur, mode, systemPrompt:getSystemPrompt(mode)})
+      });
+      
+      if(!res.ok){ const err = await res.text(); throw new Error(err); }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder("utf-8");
+      let full = '';
+      let buffer = '';
+      
+      while(true){
+        const {done, value} = await reader.read();
+        if(done) break;
+        buffer += dec.decode(value, {stream: true});
+        const lines = buffer.split('
+');
+        buffer = lines.pop(); // Keep the incomplete line in the buffer
+        
+        for(let line of lines){
+          line = line.trim();
+          if(line.startsWith('data: ')){
+            const d = line.slice(6);
+            if(d === '[DONE]') continue;
+            try {
+              const j = JSON.parse(d);
+              const delta = j.choices?.[0]?.delta?.content;
+              if(delta){
+                full += delta;
+                streamEl.innerHTML = full.replace(/
+/g,'<br>');
+                msgsContainer.scrollTop = msgsContainer.scrollHeight;
+              }
+            } catch(e) {
+              // Ignore incomplete JSON chunks silently
+            }
           }
         }
       }
-    }
-    cur.push({role:'assistant', content:full});
-    
-    chats.push({title: histTitle + '...', at: Date.now()}); 
-    localStorage.setItem(getChatKey(), JSON.stringify(chats.slice(-20))); 
-    renderHist();
-    
+      cur.push({role:'assistant', content:full});
+      
+      chats.push({title: histTitle + '...', at: Date.now()}); 
+      localStorage.setItem(getChatKey(), JSON.stringify(chats.slice(-20))); 
+      renderHist();
+      
   } catch(e) {
     holder.innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`;
   }
