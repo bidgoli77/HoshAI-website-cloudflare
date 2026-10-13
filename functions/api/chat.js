@@ -18,7 +18,7 @@ export async function onRequestPost(context) {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'deepseek-flash',
+        model: 'deepseek-chat',
         stream: true,
         messages: [{ role: 'system', content: brandedSystem }, ...messages]
       })
