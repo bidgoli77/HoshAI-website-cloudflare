@@ -38,4 +38,4 @@ hoshai.com/api/users?admin_secret=YOUR_ADMIN_SECRET -> see all emails
 
 Marketing:
 Export that JSON and import to Mailchimp/Resend/ConvertKit for campaigns.
-We can add automatic welcome email via Resend later.
+We can add automatic welcome email via Resend later..
