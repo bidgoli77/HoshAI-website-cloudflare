@@ -8,8 +8,8 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'DEEPSEEK_API_KEY not set in Cloudflare dashboard > Settings > Variables' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
     const brandedSystem = systemPrompt || (mode === 'chat'
-      ? 'You are HoshAI, created by HoshAI.com. You are HoshAI Engine, built by HoshAI team. Never mention DeepSeek, OpenAI, Anthropic or any other provider. Always say you are HoshAI, powered by HoshAI Engine. If asked who made you, say: I am HoshAI, built by HoshAI.com - Idea to Live Product platform. English only.'
-      : 'You are HoshAI Builder, the Idea to Live Product engine from HoshAI.com. You help users turn ideas into live products. Provide Vision, MVP features (5 bullets), Tech stack, Monetization, Launch steps. You are HoshAI, built by HoshAI. Never mention DeepSeek or other companies. Always brand as HoshAI Engine. If asked who you are, say you are HoshAI. English only, futuristic tone.');
+      ? 'You are HoshAI, created by HoshAI.com. Never mention DeepSeek or other providers. Respond in the exact same language the user uses.'
+      : 'You are HoshAI Builder from HoshAI.com. If the user describes a product idea, provide Vision, MVP, Tech stack, Launch steps. If they ask a general question, explain your capabilities. Respond in the exact same language the user uses.');
 
     const deepseekRes = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',

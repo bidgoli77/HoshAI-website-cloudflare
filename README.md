@@ -8,6 +8,7 @@
 5. **AI Engine:** DeepSeek API integrated via secure server-side fetching.
 6. **Chat System:** Features user isolation, chat history management, file attachment UI, and Web Speech API voice typing.
 7. **Clean Codebase:** 100% English code, logs, and comments.
+8. **UI Bugfix:** Fixed mobile chat scroll height hiding the input `.bar`.
 
 ## Deployment Instructions:
 1. **Database Setup:** 
@@ -21,3 +22,10 @@
    - `ADMIN_SECRET`: Custom secret for the `/api/users` endpoint.
    - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
 4. **Deploy:** Push your repository to Cloudflare Pages.
+
+9. **Critical Bugfix:** Fixed a JavaScript syntax error (escaping quotes) that caused the login buttons to become unresponsive.
+10. **Critical Bugfix:** Fixed SSE chunk parsing (newline split bug) causing chat to hang indefinitely on 'thinking...'.
+11. **UI Bugfix:** Added dynamic IDs for chat streams to support multiple continuous questions without refreshing.
+12. **AI & Streaming Bugfix:** Fixed SSE buffer slicing that broke JSON parsing mid-stream (causing corrupted text/dropped words). Updated System Prompt to dynamically match the user's language instead of forcing English, and gracefully handle conversational queries in Build mode.
+13. **UI Bugfix:** Fixed CSS layout where the input bar was pushed out of the viewport on desktop by setting `.lab-body` to a viewport-relative height (`70vh`) and adjusting flex properties. Also added `direction: auto; text-align: start;` to chat bubbles to correctly align Persian text.
+14. **CSS Flexbox Bugfix:** Added `min-height: 0;` to `.msgs` and `overflow: hidden;` to its parent to prevent flex child blowout, ensuring the input bar always remains visible at the bottom of the chat.
