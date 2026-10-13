@@ -217,7 +217,7 @@ function updateAuthUI(){
   if(currentUser){
     $('authOverlay').style.display='none';$('authBtn').style.display='none';$('logoutBtn').style.display='inline-block';$('userBadge').style.display='inline-block';$('userBadge').innerText='👋 '+currentUser.name;
     if($('msgs').children.length===0 || $('msgs').querySelector('.locked')){
-      $('msgs').innerHTML='<div class="bubble a">Welcome back '+currentUser.name+'! 👋<br><br>I\\'m <span class="HoshAI-brand">HoshAI</span> — your product builder.<br><br>💬 <b>Chat:</b> Ask anything<br>🚀 <b>Build:</b> Describe idea → live product</div>';
+      $('msgs').innerHTML='<div class="bubble a">Welcome back '+currentUser.name+'! 👋<br><br>I\'m <span class="HoshAI-brand">HoshAI</span> — your product builder.<br><br>💬 <b>Chat:</b> Ask anything<br>🚀 <b>Build:</b> Describe idea → live product</div>';
     }
   }else{
     $('userBadge').style.display='none';$('logoutBtn').style.display='none';$('authBtn').style.display='inline-block';

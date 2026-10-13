@@ -22,3 +22,5 @@
    - `ADMIN_SECRET`: Custom secret for the `/api/users` endpoint.
    - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
 4. **Deploy:** Push your repository to Cloudflare Pages.
+
+9. **Critical Bugfix:** Fixed a JavaScript syntax error (escaping quotes) that caused the login buttons to become unresponsive.
