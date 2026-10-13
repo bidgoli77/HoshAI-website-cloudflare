@@ -337,6 +337,28 @@ function addBubble(role, html) {
   return d;
 }
 
+function loadChatFromHistory(index) {
+  if(!chats[index]) return;
+  cur = chats[index].messages || [];
+  
+  const m = document.getElementById('msgs');
+  m.innerHTML = '';
+  
+  if (cur.length === 0) {
+     newChat();
+     return;
+  }
+  
+  cur.forEach(msg => {
+    let textContent = msg.content;
+    if(Array.isArray(msg.content)){
+        let textPart = msg.content.find(i => i.type === 'text');
+        textContent = textPart ? textPart.text : '[Attachment]';
+    }
+    addBubble(msg.role, textContent);
+  });
+}
+
 function renderHist() {
   const h = document.getElementById('hist');
   if (!h) return;
@@ -351,7 +373,8 @@ function renderHist() {
     titleSpan.style.textOverflow = 'ellipsis';
     titleSpan.style.whiteSpace = 'nowrap';
     titleSpan.innerText = c.title;
-    
+    titleSpan.style.flex = '1';
+    d.onclick = () => loadChatFromHistory(realIndex);
     const delBtn = document.createElement('span');
     delBtn.innerHTML = '&times;';
     delBtn.style.cssText = 'color:#ff6b6b;font-size:16px;padding:0 5px;cursor:pointer;font-weight:bold;';
@@ -467,7 +490,7 @@ async function send() {
       }
       cur.push({role:'assistant', content:full});
       
-      chats.push({title: histTitle + '...', at: Date.now()}); 
+      chats.push({title: histTitle + '...', at: Date.now(), messages: JSON.parse(JSON.stringify(cur))}); 
       localStorage.setItem(getChatKey(), JSON.stringify(chats.slice(-20))); 
       renderHist();
       

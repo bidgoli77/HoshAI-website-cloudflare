@@ -36,3 +36,4 @@
 19. **Mobile UX Bugfix:** Relocated the authentication error message to the top of the form so it isn't hidden behind the iOS/Android virtual keyboard. Added Enter key submission support for mobile keyboards.
 20. **Feature Update (Chat History Navigation):** Updated the local storage schema to save the full message array (`cur`) alongside the chat title. Added `loadChatFromHistory()` function and bound it to the sidebar elements so clicking previous chats actually loads their content onto the screen.
 21. **Feature Update (Copy Button):** Added a 'Copy' button with a clipboard icon beneath every AI response bubble. Clicking it efficiently extracts and copies the pure text content of the response to the user's clipboard.
+22. **Critical Feature Fix (History Loading):** Fixed a silent injection failure from v20. Chat histories now properly save the full `cur` message array, and clicking historical chats in the sidebar correctly re-renders the conversation.
